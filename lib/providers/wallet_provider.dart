@@ -1,202 +1,248 @@
-import 'package:flutter/foundation.dart';
-import '../core/database/db_service.dart';
-import '../core/utils/constants.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../core/utils/formatter.dart';
-import '../core/utils/helpers.dart';
 import '../models/wallet.dart';
+import '../providers/sales_provider.dart';
+import '../providers/transaction_provider.dart';
+import '../providers/wallet_provider.dart';
 
-class WalletProvider extends ChangeNotifier {
-  final DbService _dbService = DbService.instance;
+class PosScreen extends StatefulWidget {
+  const PosScreen({super.key});
 
-  List<Wallet> wallets = [];
+  @override
+  State<PosScreen> createState() => _PosScreenState();
+}
 
-  double get totalWalletsBalance =>
-      wallets.fold(0.0, (sum, w) => sum + w.balance);
+class _PosScreenState extends State<PosScreen> {
+  final _prodNameCtrl = TextEditingController();
+  final _qtyCtrl = TextEditingController(text: '1');
+  final _buyCtrl = TextEditingController();
+  final _sellCtrl = TextEditingController();
 
-  Wallet? getWalletByName(String name) {
-    final target = name.trim();
+  final _transferAmtCtrl = TextEditingController();
+  final _transferCommCtrl = TextEditingController(text: '0');
+  Wallet? _fromWallet;
+  Wallet? _toWallet;
+
+  final _debtCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _prodNameCtrl.dispose();
+    _qtyCtrl.dispose();
+    _buyCtrl.dispose();
+    _sellCtrl.dispose();
+    _transferAmtCtrl.dispose();
+    _transferCommCtrl.dispose();
+    _debtCtrl.dispose();
+    super.dispose();
+  }
+
+  void _notify(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Future<void> _submitSale() async {
     try {
-      return wallets.firstWhere((w) => w.name.trim() == target);
-    } catch (_) {
-      return null;
+      final qty = int.tryParse(_qtyCtrl.text.trim()) ?? 0;
+      final buy = double.tryParse(_buyCtrl.text.trim()) ?? -1;
+      final sell = double.tryParse(_sellCtrl.text.trim()) ?? -1;
+
+      await context.read<SalesProvider>().addProductSale(
+            name: _prodNameCtrl.text,
+            qty: qty,
+            buy: buy,
+            sell: sell,
+          );
+      _prodNameCtrl.clear();
+      _buyCtrl.clear();
+      _sellCtrl.clear();
+      _qtyCtrl.text = '1';
+      _notify('تم تسجيل عملية البيع بنجاح');
+    } catch (e) {
+      _notify(e.toString().replaceFirst('Exception: ', ''));
     }
   }
 
-  Future<void> loadWallets() async {
-    final db = await _dbService.database;
-    final rows = await db.query('wallets', orderBy: 'id ASC');
-    wallets = rows.map((r) => Wallet.fromMap(r)).toList();
-    notifyListeners();
+  Future<void> _submitTransfer() async {
+    try {
+      if (_fromWallet == null || _toWallet == null) {
+        throw Exception('اختر المحفظة المرسلة والمستلمة');
+      }
+      final amt = double.tryParse(_transferAmtCtrl.text.trim()) ?? 0;
+      final comm = double.tryParse(_transferCommCtrl.text.trim()) ?? 0;
+
+      await context.read<WalletProvider>().transferBetweenWallets(
+            from: _fromWallet!,
+            to: _toWallet!,
+            amount: amt,
+            commission: comm,
+          );
+      _transferAmtCtrl.clear();
+      _transferCommCtrl.text = '0';
+      await context.read<SalesProvider>().loadSalesAndStats();
+      _notify('تم تنفيذ التحويل بنجاح');
+    } catch (e) {
+      _notify(e.toString().replaceFirst('Exception: ', ''));
+    }
   }
 
-  Future<void> addWallet(String name, double balance, {double? outLimit}) async {
-    final cleanName = name.trim();
-    if (cleanName.isEmpty) {
-      throw Exception('اسم المحفظة مطلوب');
+  Future<void> _submitDebts() async {
+    try {
+      final val = double.tryParse(_debtCtrl.text.trim()) ?? -1;
+      await context.read<TransactionProvider>().updateDebts(val);
+      _debtCtrl.clear();
+      _notify('تم تحديث الديون');
+    } catch (e) {
+      _notify(e.toString().replaceFirst('Exception: ', ''));
     }
-    if (balance < 0) {
-      throw Exception('لا يمكن تسجيل محفظة برصيد سالب');
-    }
+  }
 
-    final exists = wallets.any((x) => x.name.trim() == cleanName);
-    if (exists) {
-      throw Exception('المحفظة موجودة مسبقاً');
-    }
+  @override
+  Widget build(BuildContext context) {
+    final wallets = context.watch<WalletProvider>().wallets;
+    final txns = context.watch<SalesProvider>().txns;
 
-    final db = await _dbService.database;
-    final existingRows = await db.query(
-      'wallets',
-      where: 'TRIM(name) = ?',
-      whereArgs: [cleanName],
-      limit: 1,
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Card(
+          elevation: 0,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('تسجيل بيع منتج', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                const SizedBox(height: 10),
+                TextField(controller: _prodNameCtrl, decoration: const InputDecoration(labelText: 'اسم المنتج')),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _qtyCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: 'الكمية'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: _buyCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(labelText: 'سعر الشراء'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: _sellCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(labelText: 'سعر البيع'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                FilledButton(onPressed: _submitSale, child: const Text('إتمام البيع')),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Card(
+          elevation: 0,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('تحويل بين المحافظ', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<Wallet>(
+                  initialValue: _fromWallet,
+                  hint: const Text('من محفظة'),
+                  items: wallets
+                      .map((w) => DropdownMenuItem(value: w, child: Text('${w.name} (${AppFormatter.fmt(w.balance)})')))
+                      .toList(),
+                  onChanged: (v) => setState(() => _fromWallet = v),
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<Wallet>(
+                  initialValue: _toWallet,
+                  hint: const Text('إلى محفظة'),
+                  items: wallets
+                      .map((w) => DropdownMenuItem(value: w, child: Text('${w.name} (${AppFormatter.fmt(w.balance)})')))
+                      .toList(),
+                  onChanged: (v) => setState(() => _toWallet = v),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _transferAmtCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(labelText: 'المبلغ'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: _transferCommCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(labelText: 'العمولة'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                FilledButton(onPressed: _submitTransfer, child: const Text('تنفيذ التحويل')),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Card(
+          elevation: 0,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('تحديث إجمالي الديون', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _debtCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'إجمالي الديون الحالي'),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton(onPressed: _submitDebts, child: const Text('تحديث الديون')),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Text('آخر المعاملات', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+        const SizedBox(height: 8),
+        ...txns.take(20).map(
+              (t) => Card(
+                elevation: 0,
+                margin: const EdgeInsets.only(bottom: 6),
+                child: ListTile(
+                  title: Text(t.title),
+                  subtitle: Text('${t.type} • ${t.date}'),
+                  trailing: Text(
+                    AppFormatter.fmt(t.amount),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ),
+      ],
     );
-    if (existingRows.isNotEmpty) {
-      throw Exception('المحفظة موجودة مسبقاً');
-    }
-
-    final resolvedLimit = outLimit ?? AppHelpers.limitForWallet(cleanName);
-    if (resolvedLimit < 0) {
-      throw Exception('لا يمكن تسجيل حد سحب سالب');
-    }
-
-    await db.transaction((txn) async {
-      await txn.insert('wallets', {
-        'name': cleanName,
-        'balance': balance,
-        'outLimit': resolvedLimit,
-      });
-      await _dbService.logAction(
-        'WALLET_ADD',
-        'إضافة محفظة "$cleanName" برصيد $balance',
-        executor: txn,
-      );
-    });
-
-    await loadWallets();
-  }
-
-  Future<void> updateWallet(Wallet w) async {
-    if (w.id == null) return;
-    final cleanName = w.name.trim();
-    if (cleanName.isEmpty) {
-      throw Exception('اسم المحفظة مطلوب');
-    }
-    if (w.balance < 0 || w.outLimit < 0) {
-      throw Exception('لا يمكن تحديث رصيد أو حد بقيمة سالبة');
-    }
-
-    final duplicate = wallets.any(
-      (x) => x.id != w.id && x.name.trim() == cleanName,
-    );
-    if (duplicate) {
-      throw Exception('المحفظة موجودة مسبقاً');
-    }
-
-    final db = await _dbService.database;
-    await db.transaction((txn) async {
-      await txn.update(
-        'wallets',
-        {
-          'name': cleanName,
-          'balance': w.balance,
-          'outLimit': w.outLimit,
-        },
-        where: 'id = ?',
-        whereArgs: [w.id],
-      );
-      await _dbService.logAction(
-        'WALLET_UPDATE',
-        'تحديث محفظة "$cleanName" (ID: ${w.id}) إلى رصيد ${w.balance}',
-        executor: txn,
-      );
-    });
-
-    await loadWallets();
-  }
-
-  Future<void> deleteWallet(Wallet w) async {
-    if (w.id == null) return;
-    if (w.name == AppConstants.drawerName || w.name == AppConstants.safeName) {
-      throw Exception('لا يمكن حذف "${w.name}"');
-    }
-
-    final db = await _dbService.database;
-    await db.transaction((txn) async {
-      await txn.delete('wallets', where: 'id = ?', whereArgs: [w.id]);
-      await _dbService.logAction(
-        'WALLET_DELETE',
-        'حذف محفظة "${w.name}" (ID: ${w.id})',
-        executor: txn,
-      );
-    });
-
-    await loadWallets();
-  }
-
-  Future<void> transferBetweenWallets({
-    required Wallet from,
-    required Wallet to,
-    required double amount,
-    double commission = 0,
-    String note = '',
-  }) async {
-    if (from.id == null || to.id == null || from.id == to.id) {
-      throw Exception('اختر محفظتين مختلفتين للتحويل');
-    }
-    if (amount <= 0 || commission < 0) {
-      throw Exception('قيمة التحويل غير صحيحة');
-    }
-
-    final totalDeduction = amount + commission;
-    if (from.balance < totalDeduction) {
-      throw Exception('رصيد المحفظة المرسلة غير كافٍ');
-    }
-
-    final newFromBalance = from.balance - totalDeduction;
-    final newToBalance = to.balance + amount;
-    if (newFromBalance < 0 || newToBalance < 0) {
-      throw Exception('الرصيد لا يمكن أن يكون سالباً');
-    }
-
-    final db = await _dbService.database;
-    await db.transaction((txn) async {
-      await txn.update(
-        'wallets',
-        {'balance': newFromBalance},
-        where: 'id = ?',
-        whereArgs: [from.id],
-      );
-      await txn.update(
-        'wallets',
-        {'balance': newToBalance},
-        where: 'id = ?',
-        whereArgs: [to.id],
-      );
-
-      final title = note.trim().isEmpty
-          ? 'تحويل من ${from.name} إلى ${to.name}'
-          : '${note.trim()} (${from.name} -> ${to.name})';
-
-      await txn.insert('txns', {
-        'title': title,
-        'amount': amount,
-        'profit': commission,
-        'type': 'تحويل محافظ',
-        'date': AppFormatter.todayStr(),
-      });
-
-      await txn.rawUpdate(
-        'UPDATE daily_stats SET today_profit = today_profit + ?, ops_count = ops_count + 1 WHERE id = 1',
-        [commission],
-      );
-
-      await _dbService.logAction(
-        'WALLET_TRANSFER',
-        'تحويل $amount من "${from.name}" إلى "${to.name}" (عمولة: $commission)',
-        executor: txn,
-      );
-    });
-
-    await loadWallets();
   }
 }
