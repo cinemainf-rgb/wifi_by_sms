@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import '../core/utils/formatter.dart';
 import '../models/wallet.dart';
@@ -162,7 +162,7 @@ class _PosScreenState extends State<PosScreen> {
                 const Text('تحويل بين المحافظ', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<Wallet>(
-                  value: _fromWallet,
+                  initialValue: _fromWallet,
                   hint: const Text('من محفظة'),
                   items: wallets
                       .map((w) => DropdownMenuItem(value: w, child: Text('${w.name} (${AppFormatter.fmt(w.balance)})')))
@@ -171,7 +171,7 @@ class _PosScreenState extends State<PosScreen> {
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<Wallet>(
-                  value: _toWallet,
+                  initialValue: _toWallet,
                   hint: const Text('إلى محفظة'),
                   items: wallets
                       .map((w) => DropdownMenuItem(value: w, child: Text('${w.name} (${AppFormatter.fmt(w.balance)})')))
