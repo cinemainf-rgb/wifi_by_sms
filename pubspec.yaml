@@ -1,17 +1,20 @@
-name: wifi_by_sms
-description: "A new Flutter project for WiFi by SMS and Bluetooth printing."
+name: fazlaka_pay
+description: فزلكة - Fazlaka Pay POS & Accounting App
 publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: '>=3.2.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.6
-  bluetooth_print: ^4.3.0
-  crypto: ^3.0.3
+  provider: ^6.1.2
+  sqflite_sqlcipher: ^3.1.0
+  flutter_secure_storage: ^9.2.2
+  path: ^1.8.3
+  local_auth: ^2.3.0
+  cryptography: ^2.7.0
 
 dev_dependencies:
   flutter_test:
@@ -20,4 +23,13 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  
+  fonts:
+    - family: Cairo
+      fonts:
+        - asset: assets/fonts/Cairo-Regular.ttf
+        - asset: assets/fonts/Cairo-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Cairo-ExtraBold.ttf
+          weight: 800
+        - asset: assets/fonts/Cairo-Black.ttf
+          weight: 900
