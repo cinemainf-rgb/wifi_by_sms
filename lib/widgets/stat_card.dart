@@ -1,4 +1,4 @@
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart';
 
 class StatCard extends StatelessWidget {
   final String title;
@@ -21,7 +21,9 @@ class StatCard extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.25)),
+        side: BorderSide(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.25),
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(14),
