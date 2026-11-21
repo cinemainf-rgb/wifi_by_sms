@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../core/utils/constants.dart';
 import '../providers/security_provider.dart';
 import '../theme/app_theme.dart';
 
@@ -76,7 +75,6 @@ class _LockScreenState extends State<LockScreen> {
     }
   }
 
-  // شكل موحد للخانات (أبيض بخلفية دائرية)
   InputDecoration _buildPinInputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
@@ -101,7 +99,7 @@ class _LockScreenState extends State<LockScreen> {
     final isSetupMode = !sec.hasPin;
 
     return Scaffold(
-      backgroundColor: AppTheme.primaryDarkGreen, // الخلفية الغامقة زي الأول
+      backgroundColor: AppTheme.primaryDarkGreen,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -111,11 +109,10 @@ class _LockScreenState extends State<LockScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // الشعار أو اسم التطبيق بشكل شيك
                   const Text(
                     'Fazlaka',
                     style: TextStyle(
-                      fontFamily: 'Cairo', // أو أي خط تاني لو حابب
+                      fontFamily: 'Cairo',
                       fontSize: 48,
                       fontWeight: FontWeight.w900,
                       color: Colors.white,
@@ -135,7 +132,6 @@ class _LockScreenState extends State<LockScreen> {
                   ),
                   const SizedBox(height: 40),
 
-                  // رسالة الخطأ (لو فيه)
                   if (_errorText != null) ...[
                     Container(
                       padding: const EdgeInsets.all(10),
@@ -152,9 +148,8 @@ class _LockScreenState extends State<LockScreen> {
                     const SizedBox(height: 16),
                   ],
 
-                  // خانة إدخال الـ PIN
                   Directionality(
-                    textDirection: TextDirection.ltr, // الأرقام تطلع من الشمال لليمين
+                    textDirection: TextDirection.ltr,
                     child: TextField(
                       controller: _pinController,
                       keyboardType: TextInputType.number,
@@ -165,7 +160,6 @@ class _LockScreenState extends State<LockScreen> {
                     ),
                   ),
 
-                  // خانة تأكيد الـ PIN (تظهر فقط في وضع الإنشاء)
                   if (isSetupMode) ...[
                     const SizedBox(height: 16),
                     Directionality(
@@ -183,13 +177,12 @@ class _LockScreenState extends State<LockScreen> {
                   
                   const SizedBox(height: 30),
 
-                  // زرار الدخول / الحفظ
                   SizedBox(
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF26A69A), // لون تركوازي زي الأول
+                        backgroundColor: const Color(0xFF26A69A),
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
@@ -210,7 +203,6 @@ class _LockScreenState extends State<LockScreen> {
                     ),
                   ),
 
-                  // زرار البصمة (لو مفعل)
                   if (!isSetupMode && sec.biometricEnabled) ...[
                     const SizedBox(height: 16),
                     SizedBox(
@@ -218,7 +210,7 @@ class _LockScreenState extends State<LockScreen> {
                       height: 56,
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.secondaryMint, // اللون النعناعي الفاتح
+                          backgroundColor: AppTheme.secondaryMint,
                           foregroundColor: AppTheme.primaryDarkGreen,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
