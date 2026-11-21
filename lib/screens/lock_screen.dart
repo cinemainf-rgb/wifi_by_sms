@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/utils/constants.dart';
 import '../providers/security_provider.dart';
+import '../theme/app_theme.dart';
 
 class LockScreen extends StatefulWidget {
   const LockScreen({super.key});
@@ -75,12 +76,32 @@ class _LockScreenState extends State<LockScreen> {
     }
   }
 
+  // شكل موحد للخانات (أبيض بخلفية دائرية)
+  InputDecoration _buildPinInputDecoration(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(letterSpacing: 8, fontWeight: FontWeight.bold),
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(vertical: 20),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: AppTheme.secondaryMint, width: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final sec = context.watch<SecurityProvider>();
     final isSetupMode = !sec.hasPin;
 
     return Scaffold(
+      backgroundColor: AppTheme.primaryDarkGreen, // الخلفية الغامقة زي الأول
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -90,73 +111,127 @@ class _LockScreenState extends State<LockScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.lock_outline_rounded, size: 64),
-                  const SizedBox(height: 12),
-                  Text(
-                    AppConstants.appNameAr,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    isSetupMode
-                        ? 'قم بتعيين رمز PIN لحماية حساباتك'
-                        : 'أدخل رمز PIN لفتح التطبيق',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 24),
-                  TextField(
-                    controller: _pinController,
-                    keyboardType: TextInputType.number,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'رمز PIN',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.pin_outlined),
+                  // الشعار أو اسم التطبيق بشكل شيك
+                  const Text(
+                    'Fazlaka',
+                    style: TextStyle(
+                      fontFamily: 'Cairo', // أو أي خط تاني لو حابب
+                      fontSize: 48,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      fontStyle: FontStyle.italic,
+                      letterSpacing: 2,
                     ),
                   ),
-                  if (isSetupMode) ...[
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: _confirmPinController,
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Fazlaka Pay',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white70,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+
+                  // رسالة الخطأ (لو فيه)
+                  if (_errorText != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        _errorText!,
+                        style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // خانة إدخال الـ PIN
+                  Directionality(
+                    textDirection: TextDirection.ltr, // الأرقام تطلع من الشمال لليمين
+                    child: TextField(
+                      controller: _pinController,
                       keyboardType: TextInputType.number,
                       obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'تأكيد رمز PIN',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.check_circle_outline),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 24, letterSpacing: 10, fontWeight: FontWeight.bold),
+                      decoration: _buildPinInputDecoration('••••'),
+                    ),
+                  ),
+
+                  // خانة تأكيد الـ PIN (تظهر فقط في وضع الإنشاء)
+                  if (isSetupMode) ...[
+                    const SizedBox(height: 16),
+                    Directionality(
+                      textDirection: TextDirection.ltr,
+                      child: TextField(
+                        controller: _confirmPinController,
+                        keyboardType: TextInputType.number,
+                        obscureText: true,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 24, letterSpacing: 10, fontWeight: FontWeight.bold),
+                        decoration: _buildPinInputDecoration('تأكيد ••••'),
                       ),
                     ),
                   ],
-                  if (_errorText != null) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      _errorText!,
-                      style: TextStyle(color: Theme.of(context).colorScheme.error),
-                    ),
-                  ],
-                  const SizedBox(height: 20),
+                  
+                  const SizedBox(height: 30),
+
+                  // زرار الدخول / الحفظ
                   SizedBox(
                     width: double.infinity,
-                    height: 48,
-                    child: FilledButton(
+                    height: 56,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF26A69A), // لون تركوازي زي الأول
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
                       onPressed: _isSubmitting ? null : () => _submitPin(sec),
                       child: _isSubmitting
                           ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                             )
-                          : Text(isSetupMode ? 'حفظ وفتح' : 'فتح التطبيق'),
+                          : Text(
+                              isSetupMode ? 'حفظ وفتح' : 'دخول',
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
                     ),
                   ),
+
+                  // زرار البصمة (لو مفعل)
                   if (!isSetupMode && sec.biometricEnabled) ...[
-                    const SizedBox(height: 12),
-                    TextButton.icon(
-                      onPressed: _tryBiometric,
-                      icon: const Icon(Icons.fingerprint),
-                      label: const Text('فتح بالبصمة'),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.secondaryMint, // اللون النعناعي الفاتح
+                          foregroundColor: AppTheme.primaryDarkGreen,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 0,
+                        ),
+                        onPressed: _tryBiometric,
+                        icon: const Icon(Icons.fingerprint, size: 28),
+                        label: const Text(
+                          'دخول بالبصمة',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
                     ),
                   ],
                 ],
