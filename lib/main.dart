@@ -89,9 +89,15 @@ class _FazlakaAppState extends State<FazlakaApp> {
                 child: child ?? const SizedBox.shrink(),
               );
             },
+            // تعديل شاشة التحميل لتكون بخلفية داكنة زي التطبيق الأول
             home: !app.isInitialized
                 ? const Scaffold(
-                    body: Center(child: CircularProgressIndicator()),
+                    backgroundColor: AppTheme.primaryDarkGreen, // اللون الغامق الجديد
+                    body: Center(
+                      child: CircularProgressIndicator(
+                        color: AppTheme.secondaryMint, // لون النعناع للتحميل
+                      ),
+                    ),
                   )
                 : (security.isLocked
                     ? const LockScreen()
