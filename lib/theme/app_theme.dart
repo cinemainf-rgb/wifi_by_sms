@@ -1,20 +1,43 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static const Color primaryIndigo = Color(0xFF1E3A8A);
-  static const Color secondaryTeal = Color(0xFF0F766E);
+  // ألوان مستوحاة من تطبيق Fazlaka Pay (الأول)
+  static const Color primaryDarkGreen = Color(0xFF0A4D44); // الأخضر الغامق (الرئيسي)
+  static const Color secondaryMint = Color(0xFF80E5D0);    // الأخضر الفاتح (النعناعي)
+  static const Color bgColor = Color(0xFFF4F7F6);          // لون الخلفية الفاتح
+  static const Color darkBgColor = Color(0xFF121A1A);      // لون الخلفية الداكن
 
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
     fontFamily: 'Cairo',
     colorScheme: ColorScheme.fromSeed(
-      seedColor: primaryIndigo,
-      primary: primaryIndigo,
-      secondary: secondaryTeal,
+      seedColor: primaryDarkGreen,
+      primary: primaryDarkGreen,
+      secondary: secondaryMint,
+      background: bgColor,
       brightness: Brightness.light,
     ),
-    scaffoldBackgroundColor: const Color(0xFFF4F6FA),
+    scaffoldBackgroundColor: bgColor,
+    
+    // تخصيص شكل الـ AppBar عشان يبقى زي الأول
+    appBarTheme: const AppBarTheme(
+      backgroundColor: primaryDarkGreen,
+      foregroundColor: Colors.white,
+      centerTitle: true,
+      elevation: 0,
+    ),
+
+    // تخصيص الأزرار
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: primaryDarkGreen,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    ),
   );
 
   static ThemeData darkTheme = ThemeData(
@@ -22,11 +45,18 @@ class AppTheme {
     brightness: Brightness.dark,
     fontFamily: 'Cairo',
     colorScheme: ColorScheme.fromSeed(
-      seedColor: primaryIndigo,
-      primary: const Color(0xFF60A5FA),
-      secondary: const Color(0xFF2DD4BF),
+      seedColor: primaryDarkGreen,
+      primary: primaryDarkGreen,
+      secondary: secondaryMint,
+      background: darkBgColor,
       brightness: Brightness.dark,
     ),
-    scaffoldBackgroundColor: const Color(0xFF0F172A),
+    scaffoldBackgroundColor: darkBgColor,
+    appBarTheme: const AppBarTheme(
+      backgroundColor: primaryDarkGreen,
+      foregroundColor: Colors.white,
+      centerTitle: true,
+      elevation: 0,
+    ),
   );
 }
