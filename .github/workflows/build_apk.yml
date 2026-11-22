@@ -31,13 +31,17 @@ jobs:
 
       - name: Fix MainActivity for fingerprint
         run: |
+          echo "--- Before fix ---"
+          find android -name "MainActivity*" || true
+          rm -rf android/app/src/main/java/com/fazlaka/pay
           mkdir -p android/app/src/main/kotlin/com/fazlaka/pay
           cat > android/app/src/main/kotlin/com/fazlaka/pay/MainActivity.kt <<'EOF'
           package com.fazlaka.pay
           import io.flutter.embedding.android.FlutterFragmentActivity
           class MainActivity : FlutterFragmentActivity()
           EOF
-          echo "--- MainActivity.kt ---"
+          echo "--- After fix ---"
+          find android -name "MainActivity*"
           cat android/app/src/main/kotlin/com/fazlaka/pay/MainActivity.kt
 
       - name: Install dependencies
