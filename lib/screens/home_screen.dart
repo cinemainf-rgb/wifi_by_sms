@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:blue_thermal_printer/blue_thermal_printer.dart';
+import 'package:intl/intl.dart';
+
 import '../core/utils/constants.dart';
 import '../core/utils/formatter.dart';
+import '../services/printer_service.dart';
 import '../providers/app_provider.dart';
 import '../providers/machine_provider.dart';
 import '../providers/sales_provider.dart';
@@ -23,13 +27,21 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
+  
+  // متغير عشان نخفي ونظهر الأرقام
+  bool _hideBalances = false; 
 
   void _showError(Object e) {
     if (!mounted) return;
     final msg = e.toString().replaceFirst('Exception: ', '');
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg)),
+      SnackBar(content: Text(msg), backgroundColor: Colors.red),
     );
+  }
+
+  // دالة مساعدة لإخفاء الرقم لو العين مقفولة
+  String _formatValue(double value) {
+    return _hideBalances ? '****' : AppFormatter.fmt(value);
   }
 
   Future<void> _showAddWalletDialog() async {
@@ -45,22 +57,20 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             TextField(
               controller: nameCtrl,
-              decoration: const InputDecoration(labelText: 'اسم المحفظة'),
+              decoration: const InputDecoration(labelText: 'اسم المحفظة', border: OutlineInputBorder()),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: balCtrl,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'الرصيد الابتدائي'),
+              decoration: const InputDecoration(labelText: 'الرصيد الابتدائي', border: OutlineInputBorder()),
             ),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.primaryDarkGreen),
             onPressed: () async {
               try {
                 final bal = double.tryParse(balCtrl.text.trim()) ?? -1;
@@ -90,22 +100,20 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             TextField(
               controller: nameCtrl,
-              decoration: const InputDecoration(labelText: 'اسم المكنة'),
+              decoration: const InputDecoration(labelText: 'اسم المكنة', border: OutlineInputBorder()),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: balCtrl,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'الرصيد الابتدائي'),
+              decoration: const InputDecoration(labelText: 'الرصيد الابتدائي', border: OutlineInputBorder()),
             ),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.primaryDarkGreen),
             onPressed: () async {
               try {
                 final bal = double.tryParse(balCtrl.text.trim()) ?? -1;
@@ -122,62 +130,143 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- القائمة الجانبية (Drawer) ---
+  // --- دالة عرض الطابعات والاتصال والطباعة ---
+  Future<void> _showPrinterSelectionDialog(dynamic machine) async {
+    final devices = await PrinterService.getPairedDevices();
+    
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('اختر الطابعة'),
+        content: devices.isEmpty 
+            ? const Text('لا توجد طابعات متصلة بالبلوتوث. يرجى إقران الطابعة من إعدادات الموبايل أولاً.')
+            : SizedBox(
+                width: double.maxFinite,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: devices.length,
+                  itemBuilder: (context, index) {
+                    final device = devices[index];
+                    return ListTile(
+                      leading: const Icon(Icons.print, color: AppTheme.primaryDarkGreen),
+                      title: Text(device.name ?? 'طابعة غير معروفة'),
+                      subtitle: Text(device.address ?? ''),
+                      onTap: () async {
+                        Navigator.pop(ctx); 
+                        
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('جاري الاتصال بالطابعة...')),
+                        );
+
+                        bool connected = await PrinterService.connect(device);
+                        
+                        if (connected) {
+                          try {
+                            await PrinterService.printReceipt(
+                              machineName: machine.name,
+                              balance: AppFormatter.fmt(machine.balance),
+                              limit: AppFormatter.fmt(machine.limit),
+                              date: DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now()),
+                            );
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('تمت الطباعة بنجاح ✅'), backgroundColor: Colors.green),
+                            );
+                          } catch (e) {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+                            );
+                          }
+                        } else {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('فشل الاتصال بالطابعة ❌'), backgroundColor: Colors.red),
+                          );
+                        }
+                      },
+                    );
+                  },
+                ),
+              ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showQuickActionMenu() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('إضافة سريعة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              ),
+              ListTile(
+                leading: const Icon(Icons.account_balance_wallet, color: AppTheme.primaryDarkGreen),
+                title: const Text('إضافة محفظة جديدة'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showAddWalletDialog();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.atm, color: AppTheme.primaryDarkGreen),
+                title: const Text('إضافة مكنة جديدة'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showAddMachineDialog();
+                },
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildDrawer() {
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          DrawerHeader(
-            decoration: const BoxDecoration(
-              color: AppTheme.primaryDarkGreen,
-            ),
+          const DrawerHeader(
+            decoration: BoxDecoration(color: AppTheme.primaryDarkGreen),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
-              children: const [
-                Text(
-                  'Fazlaka Pay',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+              children: [
+                Text('Fazlaka Pay', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
                 SizedBox(height: 5),
-                Text(
-                  'الإصدار 1.0.0',
-                  style: TextStyle(color: Colors.white70),
-                ),
+                Text('الإصدار 1.0.0', style: TextStyle(color: Colors.white70)),
               ],
             ),
           ),
-          ListTile(
-            leading: const Icon(Icons.settings),
-            title: const Text('الإعدادات'),
-            onTap: () {},
-          ),
-          ListTile(
-            leading: const Icon(Icons.share),
-            title: const Text('مشاركة واتساب'),
-            onTap: () {},
-          ),
-          ListTile(
-            leading: const Icon(Icons.save_alt),
-            title: const Text('تصدير JSON'),
-            onTap: () {},
-          ),
-          ListTile(
-            leading: const Icon(Icons.file_download),
-            title: const Text('استيراد'),
-            onTap: () {},
-          ),
+          ListTile(leading: const Icon(Icons.settings), title: const Text('الإعدادات'), onTap: () {}),
+          ListTile(leading: const Icon(Icons.share), title: const Text('مشاركة واتساب'), onTap: () {}),
+          ListTile(leading: const Icon(Icons.save_alt), title: const Text('تصدير JSON'), onTap: () {}),
+          ListTile(leading: const Icon(Icons.file_download), title: const Text('استيراد'), onTap: () {}),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.lock, color: Colors.red),
             title: const Text('قفل البرنامج', style: TextStyle(color: Colors.red)),
             onTap: () {
-              Navigator.pop(context); // غلق الدرج
+              Navigator.pop(context);
               context.read<SecurityProvider>().lockApp();
             },
           ),
@@ -194,6 +283,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final txnProv = context.watch<TransactionProvider>();
 
     return RefreshIndicator(
+      color: AppTheme.primaryDarkGreen,
       onRefresh: () => app.initAll(
         machineProvider: machinesProv,
         walletProvider: walletsProv,
@@ -204,7 +294,6 @@ class _HomeScreenState extends State<HomeScreen> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // كروت الإحصائيات
           GridView.count(
             crossAxisCount: 2,
             shrinkWrap: true,
@@ -213,126 +302,186 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisSpacing: 12,
             childAspectRatio: 1.4,
             children: [
-              StatCard(
-                title: 'إجمالي المكن',
-                value: AppFormatter.fmt(machinesProv.totalMachinesBalance),
-                icon: Icons.point_of_sale,
-              ),
-              StatCard(
-                title: 'إجمالي المحافظ',
-                value: AppFormatter.fmt(walletsProv.totalWalletsBalance),
-                icon: Icons.account_balance_wallet,
-              ),
-              StatCard(
-                title: 'مبيعات اليوم',
-                value: AppFormatter.fmt(salesProv.todaySales),
-                icon: Icons.trending_up,
-              ),
-              StatCard(
-                title: 'الديون',
-                value: AppFormatter.fmt(txnProv.debts),
-                icon: Icons.receipt_long,
-                accentColor: Colors.red.shade700,
-              ),
+              StatCard(title: 'إجمالي المكن', value: _formatValue(machinesProv.totalMachinesBalance), icon: Icons.point_of_sale),
+              StatCard(title: 'إجمالي المحافظ', value: _formatValue(walletsProv.totalWalletsBalance), icon: Icons.account_balance_wallet),
+              StatCard(title: 'مبيعات اليوم', value: _formatValue(salesProv.todaySales), icon: Icons.trending_up),
+              StatCard(title: 'الديون', value: _formatValue(txnProv.debts), icon: Icons.receipt_long, accentColor: Colors.red.shade700),
             ],
           ),
           const SizedBox(height: 24),
-
-          // قسم المكن (شبيه بتصميم الأول)
+          
           SectionHeader(
             title: 'المكن (${machinesProv.machines.length})',
             trailing: TextButton.icon(
               onPressed: _showAddMachineDialog,
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('إضافة'),
+              icon: const Icon(Icons.add, size: 18, color: AppTheme.primaryDarkGreen),
+              label: const Text('إضافة', style: TextStyle(color: AppTheme.primaryDarkGreen)),
             ),
           ),
           const SizedBox(height: 8),
-          ...machinesProv.machines.map(
-            (m) => Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: Colors.grey.shade300),
-              ),
-              margin: const EdgeInsets.only(bottom: 10),
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  gradient: LinearGradient(
-                    colors: [AppTheme.primaryDarkGreen.withOpacity(0.05), Colors.white],
-                    begin: Alignment.topRight,
-                    end: Alignment.bottomLeft,
-                  ),
-                ),
-                child: ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryDarkGreen.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.atm, color: AppTheme.primaryDarkGreen),
-                  ),
-                  title: Text(m.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text('الحد: ${AppFormatter.fmt(m.limit)}'),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
+
+          ...machinesProv.machines.map((m) => _buildMachineCard(m)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMachineCard(dynamic machine) {
+    double maxLimit = machine.limit > 0 ? machine.limit.toDouble() : 200000.0;
+    double currentBal = machine.balance.toDouble();
+    double progress = (currentBal / maxLimit).clamp(0.0, 1.0);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
+        gradient: LinearGradient(
+          colors: [AppTheme.primaryDarkGreen.withOpacity(0.08), Colors.white],
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+        ),
+        border: Border.all(color: AppTheme.primaryDarkGreen.withOpacity(0.1)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        AppFormatter.fmt(m.balance),
-                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppTheme.primaryDarkGreen),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.grey),
-                        onPressed: () async {
-                          try {
-                            await context.read<MachineProvider>().deleteMachine(m);
-                          } catch (e) {
-                            _showError(e);
-                          }
-                        },
-                      ),
+                      Text(machine.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      const SizedBox(height: 4),
+                      Text('الحد: ${_formatValue(machine.limit.toDouble())}', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
                     ],
                   ),
                 ),
+                Row(
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          _formatValue(machine.balance.toDouble()),
+                          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: AppTheme.primaryDarkGreen),
+                        ),
+                        Row(
+                          children: [
+                            // زرار الطباعة
+                            IconButton(
+                              constraints: const BoxConstraints(),
+                              padding: EdgeInsets.zero,
+                              icon: const Icon(Icons.print_outlined, color: Colors.blue, size: 20),
+                              onPressed: () => _showPrinterSelectionDialog(machine),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              constraints: const BoxConstraints(),
+                              padding: EdgeInsets.zero,
+                              icon: const Icon(Icons.delete_outline, color: Colors.grey, size: 20),
+                              onPressed: () async {
+                                try {
+                                  await context.read<MachineProvider>().deleteMachine(machine);
+                                } catch (e) {
+                                  _showError(e);
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(color: AppTheme.primaryDarkGreen.withOpacity(0.1), shape: BoxShape.circle),
+                      child: const Center(
+                        child: Text('ATM', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryDarkGreen, fontSize: 12)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: LinearProgressIndicator(
+                value: progress,
+                backgroundColor: Colors.grey.shade200,
+                valueColor: AlwaysStoppedAnimation<Color>(progress > 0.7 ? Colors.orange : const Color(0xFF26A69A)),
+                minHeight: 6,
               ),
             ),
-          ),
+          ],
+        ),
+      ),
+    );
+  }
 
-          const SizedBox(height: 16),
+  Widget _buildWalletsTab() {
+    final walletsProv = context.watch<WalletProvider>();
 
-          // قسم المحافظ
-          SectionHeader(
-            title: 'المحافظ (${walletsProv.wallets.length})',
-            trailing: TextButton.icon(
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('كل المحافظ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(backgroundColor: AppTheme.primaryDarkGreen),
               onPressed: _showAddWalletDialog,
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('إضافة'),
+              label: const Text('إضافة محفظة'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        ...walletsProv.wallets.map(
+          (w) => Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade300)),
+            margin: const EdgeInsets.only(bottom: 12),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.wallet, color: Colors.blueGrey),
+                          const SizedBox(width: 8),
+                          Text(w.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        ],
+                      ),
+                      Text(_formatValue(w.balance), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: AppTheme.primaryDarkGreen)),
+                    ],
+                  ),
+                  const Divider(),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('حد السحب: ${_formatValue(w.outLimit)}', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 8),
-          ...walletsProv.wallets.map(
-            (w) => Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: Colors.grey.shade300),
-              ),
-              margin: const EdgeInsets.only(bottom: 10),
-              child: ListTile(
-                leading: const Icon(Icons.wallet, color: Colors.blueGrey),
-                title: Text(w.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text('حد السحب: ${AppFormatter.fmt(w.outLimit)}'),
-                trailing: Text(
-                  AppFormatter.fmt(w.balance),
-                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -340,51 +489,53 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final app = context.watch<AppProvider>();
     
-    // الشاشات اللي هتتنقل بينها من الشريط السفلي
     final pages = [
       _buildOverviewTab(),
       const PosScreen(),
-      _buildOverviewTab(), // مؤقتاً لحد ما نعمل شاشة المحافظ منفصلة
+      _buildWalletsTab(),
       const ReportsScreen(),
     ];
 
     return Scaffold(
-      // ضفنا القائمة الجانبية
       drawer: _buildDrawer(),
-      
       appBar: AppBar(
-        title: const Text(AppConstants.appNameAr),
+        backgroundColor: AppTheme.primaryDarkGreen,
+        title: const Text(AppConstants.appNameAr, style: TextStyle(color: Colors.white)),
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
+          // زرار العين
           IconButton(
-            tooltip: 'تبديل الوضع الليلي/النهاري',
-            icon: Icon(app.isDark ? Icons.light_mode : Icons.dark_mode),
+            tooltip: _hideBalances ? 'إظهار الأرقام' : 'إخفاء الأرقام',
+            icon: Icon(_hideBalances ? Icons.visibility_off : Icons.visibility, color: Colors.white),
+            onPressed: () {
+              setState(() {
+                _hideBalances = !_hideBalances;
+              });
+            },
+          ),
+          IconButton(
+            tooltip: 'الوضع الليلي/النهاري',
+            icon: Icon(app.isDark ? Icons.light_mode : Icons.dark_mode, color: Colors.white),
             onPressed: () => app.toggleTheme(),
           ),
           IconButton(
-            tooltip: 'قفل التطبيق',
-            icon: const Icon(Icons.lock_outline),
+            tooltip: 'قفل',
+            icon: const Icon(Icons.lock_outline, color: Colors.white),
             onPressed: () => context.read<SecurityProvider>().lockApp(),
           ),
         ],
       ),
       body: pages[_currentIndex],
-      
-      // الزرار العايم (Floating Action Button) زي الأول
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // ممكن نخليه يفتح نافذة إضافة عملية جديدة
-          // _showAddTransactionDialog(); 
-        },
+        onPressed: _showQuickActionMenu,
         backgroundColor: AppTheme.primaryDarkGreen,
         child: const Icon(Icons.add, color: Colors.white),
       ),
-
-      // شريط التنقل السفلي (بقى 4 تابات)
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (i) => setState(() => _currentIndex = i),
         backgroundColor: Colors.white,
-        indicatorColor: AppTheme.secondaryMint.withOpacity(0.3),
+        indicatorColor: AppTheme.secondaryMint.withOpacity(0.5),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.atm), label: 'المكان'),
           NavigationDestination(icon: Icon(Icons.shopping_cart), label: 'المبيعات'),
