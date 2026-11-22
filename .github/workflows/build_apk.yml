@@ -24,19 +24,19 @@ jobs:
           channel: 'stable'
           cache: true
 
-      # الخطوة دي بتعمل الفولدر لو مش موجود، وبتعدل الملفات "بالعافية"
-      - name: Force Fix Android Native for Biometrics
+      # 1. إجبار السيرفر على إنشاء فولدر الأندرويد (حتى لو موجود، هيكمله)
+      - name: Generate Android Files (Force)
+        run: flutter create --platforms=android --org com.fazlaka.pay .
+
+      # 2. تعديل الماين أكتيفيتي
+      - name: Fix MainActivity for Biometrics
         run: |
-          # 1. إنشاء الفولدر لو مش موجود
-          if [ ! -d "android" ]; then
-            flutter create --platforms=android --org com.fazlaka.pay .
-          fi
-          
-          # 2. إجبار الماين أكتيفيتي يبقى FragmentActivity (في أي مكان)
           find android -name "MainActivity.kt" -exec sed -i 's/FlutterActivity/FlutterFragmentActivity/g' {} +
           find android -name "MainActivity.java" -exec sed -i 's/FlutterActivity/FlutterFragmentActivity/g' {} +
-          
-          # 3. إضافة صلاحية البصمة (بندور على الملف في أي مسار ونضيف الصلاحية)
+
+      # 3. إضافة الصلاحية في المانيفست
+      - name: Add Biometric Permissions to Manifest
+        run: |
           MANIFEST_PATH=$(find android -name "AndroidManifest.xml" | head -n 1)
           if [ -n "$MANIFEST_PATH" ]; then
             if ! grep -q "USE_BIOMETRIC" "$MANIFEST_PATH"; then
