@@ -24,26 +24,23 @@ jobs:
           channel: 'stable'
           cache: true
 
-      # 1. إنشاء فولدر أندرويد لو مش موجود
-      - name: Ensure Android folder exists
+      # الخطوة دي بتعمل الفولدر لو مش موجود، وبتعدل الملفات "بالعافية"
+      - name: Force Fix Android Native for Biometrics
         run: |
+          # 1. إنشاء الفولدر لو مش موجود
           if [ ! -d "android" ]; then
             flutter create --platforms=android --org com.fazlaka.pay .
           fi
-
-      # 2. تعديل MainActivity عشان البصمة
-      - name: Fix MainActivity for Biometrics
-        run: |
+          
+          # 2. إجبار الماين أكتيفيتي يبقى FragmentActivity (في أي مكان)
           find android -name "MainActivity.kt" -exec sed -i 's/FlutterActivity/FlutterFragmentActivity/g' {} +
           find android -name "MainActivity.java" -exec sed -i 's/FlutterActivity/FlutterFragmentActivity/g' {} +
-
-      # 3. إضافة صلاحية البصمة في الـ Manifest
-      - name: Add Biometric Permissions to Manifest
-        run: |
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          if [ -f "$MANIFEST" ]; then
-            if ! grep -q "USE_BIOMETRIC" "$MANIFEST"; then
-              sed -i '/<application/i \    <uses-permission android:name="android.permission.USE_BIOMETRIC" />' "$MANIFEST"
+          
+          # 3. إضافة صلاحية البصمة (بندور على الملف في أي مسار ونضيف الصلاحية)
+          MANIFEST_PATH=$(find android -name "AndroidManifest.xml" | head -n 1)
+          if [ -n "$MANIFEST_PATH" ]; then
+            if ! grep -q "USE_BIOMETRIC" "$MANIFEST_PATH"; then
+              sed -i '/<application/i \    <uses-permission android:name="android.permission.USE_BIOMETRIC" />' "$MANIFEST_PATH"
             fi
           else
             echo "Manifest not found!"
