@@ -9,7 +9,7 @@ class SecurityProvider extends ChangeNotifier with WidgetsBindingObserver {
   String? _pinHash;
   String? _salt;
   bool _biometricEnabled = false;
-  bool _isLocked = false;
+  bool _isLocked = true;
   bool _observerAttached = false;
 
   bool get hasPin => _pinHash != null && _pinHash!.isNotEmpty && _salt != null && _salt!.isNotEmpty;
@@ -46,15 +46,21 @@ class SecurityProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> loadSecurity() async {
     final db = await _dbService.database;
-    final rows = await db.query('security', where: 'id = 1', limit: 1);
+    var rows = await db.query('security', where: 'id = 1', limit: 1);
+    if (rows.isEmpty) {
+      await db.insert('security', {'id': 1, 'pin_hash': '', 'salt': '', 'biometric_enabled': 0});
+      rows = await db.query('security', where: 'id = 1', limit: 1);
+    }
     if (rows.isNotEmpty) {
       final row = rows.first;
       _pinHash = row['pin_hash'] as String?;
       _salt = row['salt'] as String?;
       _biometricEnabled = ((row['biometric_enabled'] as int?) ?? 0) == 1;
-      _isLocked = hasPin || _biometricEnabled;
+      // أول مرة مفيش PIN، لازم يفتح LockScreen عشان يعمل PIN
+      // لو فيه PIN، برضه يفتح LockScreen عشان يدخل بيه أو بالبصمة
+      _isLocked = true;
     } else {
-      _isLocked = false;
+      _isLocked = true;
     }
     notifyListeners();
   }
@@ -64,24 +70,27 @@ class SecurityProvider extends ChangeNotifier with WidgetsBindingObserver {
     if (cleanPin.length < 4) {
       throw Exception('الرمز السري PIN يجب أن يكون 4 أرقام على الأقل');
     }
-
     final salt = _authService.generateSalt();
     final hash = await _authService.hashPin(cleanPin, salt);
     final db = await _dbService.database;
-
     await db.transaction((txn) async {
-      await txn.update(
+      final count = await txn.update(
         'security',
         {'pin_hash': hash, 'salt': salt},
         where: 'id = 1',
       );
+      if (count == 0) {
+        await txn.insert(
+          'security',
+          {'id': 1, 'pin_hash': hash, 'salt': salt, 'biometric_enabled': 0},
+        );
+      }
       await _dbService.logAction(
         'PIN_SET',
         'تم تعيين أو تحديث رمز PIN باستخدام PBKDF2',
         executor: txn,
       );
     });
-
     _pinHash = hash;
     _salt = salt;
     _isLocked = false;
@@ -114,7 +123,6 @@ class SecurityProvider extends ChangeNotifier with WidgetsBindingObserver {
         throw Exception('البصمة غير مدعومة أو غير مفعلة على هذا الجهاز');
       }
     }
-
     final db = await _dbService.database;
     await db.transaction((txn) async {
       await txn.update(
@@ -128,13 +136,11 @@ class SecurityProvider extends ChangeNotifier with WidgetsBindingObserver {
         executor: txn,
       );
     });
-
     _biometricEnabled = enabled;
     notifyListeners();
   }
 
   Future<bool> unlockWithBiometric() async {
-    // شلنا الشرط اللي كان بيمنع البصمة - دلوقتي هيجرب بصمة الموبايل على طول
     final ok = await _authService.authenticateBiometric();
     if (ok) {
       _isLocked = false;
