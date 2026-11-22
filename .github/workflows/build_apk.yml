@@ -31,6 +31,15 @@ jobs:
             flutter create --platforms=android --org com.fazlaka.pay .
           fi
 
+      - name: Fix MainActivity for fingerprint
+        run: |
+          cat > android/app/src/main/kotlin/com/fazlaka/pay/MainActivity.kt <<'EOF'
+          package com.fazlaka.pay
+          import io.flutter.embedding.android.FlutterFragmentActivity
+          class MainActivity : FlutterFragmentActivity()
+          EOF
+          cat android/app/src/main/kotlin/com/fazlaka/pay/MainActivity.kt
+
       - name: Install dependencies
         run: flutter pub get
 
