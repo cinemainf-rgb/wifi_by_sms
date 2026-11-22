@@ -21,7 +21,7 @@ class _LockScreenState extends State<LockScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final sec = context.read<SecurityProvider>();
-      if (sec.hasPin && sec.biometricEnabled) {
+      if (sec.hasPin) {
         _tryBiometric();
       }
     });
@@ -36,7 +36,15 @@ class _LockScreenState extends State<LockScreen> {
 
   Future<void> _tryBiometric() async {
     final sec = context.read<SecurityProvider>();
-    await sec.unlockWithBiometric();
+    try {
+      await sec.unlockWithBiometric();
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorText = 'لم يتم التعرف على البصمة، جرب تاني أو ادخل الـ PIN';
+        });
+      }
+    }
   }
 
   Future<void> _submitPin(SecurityProvider sec) async {
@@ -203,7 +211,7 @@ class _LockScreenState extends State<LockScreen> {
                     ),
                   ),
 
-                  if (!isSetupMode && sec.biometricEnabled) ...[
+                  if (!isSetupMode) ...[
                     const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
