@@ -36,6 +36,13 @@ class PrinterService {
     }
   }
 
+  // دالة مساعدة للطباعة - دي اللي بقت بديل printCustom
+  static Future<void> _printLine(String text, {int size = 1, int align = 1}) async {
+    await PrintBluetoothThermal.printString(
+      printerText: PrintText(text: text, size: size, align: align),
+    );
+  }
+
   // 4. دالة الطباعة الفعلية
   static Future<void> printReceipt({
     required String machineName,
@@ -48,24 +55,20 @@ class PrinterService {
     }
 
     try {
-      await PrintBluetoothThermal.printCustom("Fazlaka Pay", 3, 1);
-      await PrintBluetoothThermal.printNewLine();
-      await PrintBluetoothThermal.printCustom("--------------------------------", 1, 1);
-
-      await PrintBluetoothThermal.printLeftRight("المكنة:", machineName, 1);
-      await PrintBluetoothThermal.printLeftRight("التاريخ:", date, 1);
-      await PrintBluetoothThermal.printLeftRight("الحد الأقصى:", limit, 1);
-      await PrintBluetoothThermal.printCustom("--------------------------------", 1, 1);
-
-      await PrintBluetoothThermal.printCustom("الرصيد الحالي", 2, 1);
-      await PrintBluetoothThermal.printCustom(balance, 3, 1);
-
-      await PrintBluetoothThermal.printNewLine();
-      await PrintBluetoothThermal.printNewLine();
-      await PrintBluetoothThermal.printCustom("شكراً لتعاملكم معنا", 1, 1);
-      await PrintBluetoothThermal.printNewLine();
-      await PrintBluetoothThermal.printNewLine();
-      await PrintBluetoothThermal.printNewLine();
+      await _printLine("Fazlaka Pay", size: 3, align: 1);
+      await _printLine("--------------------------------", size: 1, align: 1);
+      await _printLine("المكنة: $machineName", size: 1, align: 0);
+      await _printLine("التاريخ: $date", size: 1, align: 0);
+      await _printLine("الحد الأقصى: $limit", size: 1, align: 0);
+      await _printLine("--------------------------------", size: 1, align: 1);
+      await _printLine("الرصيد الحالي", size: 2, align: 1);
+      await _printLine(balance, size: 3, align: 1);
+      await _printLine("", size: 1, align: 1);
+      await _printLine("", size: 1, align: 1);
+      await _printLine("شكراً لتعاملكم معنا", size: 1, align: 1);
+      await _printLine("", size: 1, align: 1);
+      await _printLine("", size: 1, align: 1);
+      await _printLine("", size: 1, align: 1);
     } catch (e) {
       throw Exception('حدث خطأ أثناء الطباعة: $e');
     }
