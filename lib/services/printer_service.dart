@@ -1,14 +1,13 @@
-import 'package:blue_thermal_printer_plus/blue_thermal_printer_plus.dart';
+import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import 'package:flutter/material.dart';
 
 class PrinterService {
-  static final BlueThermalPrinter _bluetooth = BlueThermalPrinter.instance;
-  static BluetoothDevice? _connectedDevice;
+  static BluetoothInfo? _connectedDevice;
 
   // 1. جلب الطابعات المقترنة
-  static Future<List<BluetoothDevice>> getPairedDevices() async {
+  static Future<List<BluetoothInfo>> getPairedDevices() async {
     try {
-      return await _bluetooth.getBondedDevices();
+      return await PrintBluetoothThermal.pairedBluetooths;
     } catch (e) {
       debugPrint("Error getting devices: $e");
       return [];
@@ -16,11 +15,11 @@ class PrinterService {
   }
 
   // 2. الاتصال بالطابعة
-  static Future<bool> connect(BluetoothDevice device) async {
+  static Future<bool> connect(BluetoothInfo device) async {
     try {
-      await _bluetooth.connect(device);
-      _connectedDevice = device;
-      return true;
+      final bool result = await PrintBluetoothThermal.connect(macPrinterAddress: device.macAdress);
+      if (result) _connectedDevice = device;
+      return result;
     } catch (e) {
       debugPrint("Error connecting: $e");
       return false;
@@ -30,7 +29,7 @@ class PrinterService {
   // 3. فصل الاتصال
   static Future<void> disconnect() async {
     try {
-      await _bluetooth.disconnect();
+      await PrintBluetoothThermal.disconnect;
       _connectedDevice = null;
     } catch (e) {
       debugPrint("Error disconnecting: $e");
@@ -49,26 +48,24 @@ class PrinterService {
     }
 
     try {
-      // أوامر ESC/POS للطباعة
-      _bluetooth.printCustom("Fazlaka Pay", 3, 1); 
-      _bluetooth.printNewLine();
-      _bluetooth.printCustom("--------------------------------", 1, 1);
-      
-      _bluetooth.printLeftRight("المكنة:", machineName, 1);
-      _bluetooth.printLeftRight("التاريخ:", date, 1);
-      _bluetooth.printLeftRight("الحد الأقصى:", limit, 1);
-      _bluetooth.printCustom("--------------------------------", 1, 1);
-      
-      _bluetooth.printCustom("الرصيد الحالي", 2, 1);
-      _bluetooth.printCustom(balance, 3, 1); 
-      
-      _bluetooth.printNewLine();
-      _bluetooth.printNewLine();
-      _bluetooth.printCustom("شكراً لتعاملكم معنا", 1, 1);
-      _bluetooth.printNewLine();
-      _bluetooth.printNewLine();
-      _bluetooth.printNewLine();
-      
+      await PrintBluetoothThermal.printCustom("Fazlaka Pay", 3, 1);
+      await PrintBluetoothThermal.printNewLine();
+      await PrintBluetoothThermal.printCustom("--------------------------------", 1, 1);
+
+      await PrintBluetoothThermal.printLeftRight("المكنة:", machineName, 1);
+      await PrintBluetoothThermal.printLeftRight("التاريخ:", date, 1);
+      await PrintBluetoothThermal.printLeftRight("الحد الأقصى:", limit, 1);
+      await PrintBluetoothThermal.printCustom("--------------------------------", 1, 1);
+
+      await PrintBluetoothThermal.printCustom("الرصيد الحالي", 2, 1);
+      await PrintBluetoothThermal.printCustom(balance, 3, 1);
+
+      await PrintBluetoothThermal.printNewLine();
+      await PrintBluetoothThermal.printNewLine();
+      await PrintBluetoothThermal.printCustom("شكراً لتعاملكم معنا", 1, 1);
+      await PrintBluetoothThermal.printNewLine();
+      await PrintBluetoothThermal.printNewLine();
+      await PrintBluetoothThermal.printNewLine();
     } catch (e) {
       throw Exception('حدث خطأ أثناء الطباعة: $e');
     }
