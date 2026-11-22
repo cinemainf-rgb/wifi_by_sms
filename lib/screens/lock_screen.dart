@@ -19,25 +19,15 @@ class _LockScreenState extends State<LockScreen> {
   final LocalAuthentication _localAuth = LocalAuthentication();
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final sec = context.read<SecurityProvider>();
-      if (sec.hasPin) {
-        _tryBiometric();
-      }
-    });
-  }
-
-  @override
   void dispose() {
     _pinController.dispose();
     _confirmPinController.dispose();
     super.dispose();
   }
 
-  // دي بصمة الموبايل الحقيقية - بتكلم الموبايل على طول من غير وسيط
+  // بصمة حقيقية - بتشتغل بس لما تدوس على الزرار، مش لوحدها
   Future<void> _tryBiometric() async {
+    setState(() => _errorText = null);
     try {
       final canCheck = await _localAuth.canCheckBiometrics;
       if (!canCheck) {
@@ -52,19 +42,15 @@ class _LockScreenState extends State<LockScreen> {
           useErrorDialogs: true,
         ),
       );
-      if (ok) {
-        final sec = context.read<SecurityProvider>();
-        // نفتح بـ PIN المحفوظ داخليا عن طريق البصمة - هنفك القفل
-        sec.lockApp();
-        // لو البصمة نجحت، نفك القفل عن طريق الـ provider
-        // بنستخدم unlockWithPin بطريقة غير مباشرة: هنخلي isLocked = false عن طريق فتح وهمي
-        // الحل المباشر: ننادي unlockWithBiometric اللي بقى حقيقي دلوقتي
-        final opened = await sec.unlockWithBiometric();
-        if (!opened && mounted) {
-          setState(() => _errorText = 'البصمة نجحت بس القفل مفتحش، جرب الـ PIN');
-        }
-      } else {
+      if (!ok) {
         if (mounted) setState(() => _errorText = 'البصمة فشلت، جرب تاني');
+        return;
+      }
+      // البصمة نجحت - نفتح على طول، من غير ما نقفل تاني
+      final sec = context.read<SecurityProvider>();
+      final opened = await sec.unlockWithBiometric();
+      if (!opened && mounted) {
+        setState(() => _errorText = 'البصمة نجحت بس القفل مفتحش، جرب الـ PIN');
       }
     } catch (e) {
       if (mounted) setState(() => _errorText = 'غلطة في البصمة: $e');
