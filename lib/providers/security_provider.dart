@@ -134,10 +134,19 @@ class SecurityProvider extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<bool> unlockWithBiometric() async {
-    if (!_biometricEnabled) return false;
+    // شلنا الشرط اللي كان بيمنع البصمة - دلوقتي هيجرب بصمة الموبايل على طول
     final ok = await _authService.authenticateBiometric();
     if (ok) {
       _isLocked = false;
+      _biometricEnabled = true;
+      try {
+        final db = await _dbService.database;
+        await db.update(
+          'security',
+          {'biometric_enabled': 1},
+          where: 'id = 1',
+        );
+      } catch (_) {}
       await _dbService.logAction('APP_UNLOCK_BIOMETRIC', 'تم فتح التطبيق بالبصمة');
       notifyListeners();
     }
