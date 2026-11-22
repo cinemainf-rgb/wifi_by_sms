@@ -36,10 +36,10 @@ class PrinterService {
     }
   }
 
-  // دالة مساعدة للطباعة - دي اللي بقت بديل printCustom
-  static Future<void> _printLine(String text, {int size = 1, int align = 1}) async {
-    await PrintBluetoothThermal.printString(
-      printerText: PrintText(text: text, size: size, align: align),
+  // دالة مساعدة - دي الصح بتاعة المكتبة الجديدة
+  static Future<void> _printLine(String text, {int size = 1}) async {
+    await PrintBluetoothThermal.writeString(
+      printText: PrintTextSize(size: size, text: text),
     );
   }
 
@@ -55,20 +55,17 @@ class PrinterService {
     }
 
     try {
-      await _printLine("Fazlaka Pay", size: 3, align: 1);
-      await _printLine("--------------------------------", size: 1, align: 1);
-      await _printLine("المكنة: $machineName", size: 1, align: 0);
-      await _printLine("التاريخ: $date", size: 1, align: 0);
-      await _printLine("الحد الأقصى: $limit", size: 1, align: 0);
-      await _printLine("--------------------------------", size: 1, align: 1);
-      await _printLine("الرصيد الحالي", size: 2, align: 1);
-      await _printLine(balance, size: 3, align: 1);
-      await _printLine("", size: 1, align: 1);
-      await _printLine("", size: 1, align: 1);
-      await _printLine("شكراً لتعاملكم معنا", size: 1, align: 1);
-      await _printLine("", size: 1, align: 1);
-      await _printLine("", size: 1, align: 1);
-      await _printLine("", size: 1, align: 1);
+      await _printLine("Fazlaka Pay\n", size: 3);
+      await _printLine("--------------------------------\n", size: 1);
+      await _printLine("المكنة: $machineName\n", size: 1);
+      await _printLine("التاريخ: $date\n", size: 1);
+      await _printLine("الحد الأقصى: $limit\n", size: 1);
+      await _printLine("--------------------------------\n", size: 1);
+      await _printLine("الرصيد الحالي\n", size: 2);
+      await _printLine("$balance\n", size: 3);
+      await _printLine("\n\n", size: 1);
+      await _printLine("شكراً لتعاملكم معنا\n", size: 1);
+      await _printLine("\n\n\n", size: 1);
     } catch (e) {
       throw Exception('حدث خطأ أثناء الطباعة: $e');
     }
