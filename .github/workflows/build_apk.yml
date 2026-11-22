@@ -8,7 +8,6 @@ on:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -25,20 +24,24 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Ensure Android platform files exist
+      - name: Create MainActivity for Biometrics
         run: |
-          if [ ! -f "android/app/build.gradle" ]; then
-            flutter create --platforms=android --org com.fazlaka.pay .
-          fi
-
-      - name: Fix MainActivity for fingerprint
-        run: |
+          mkdir -p android/app/src/main/kotlin/com/fazlaka/pay
           cat > android/app/src/main/kotlin/com/fazlaka/pay/MainActivity.kt <<'EOF'
           package com.fazlaka.pay
+          
           import io.flutter.embedding.android.FlutterFragmentActivity
-          class MainActivity : FlutterFragmentActivity()
+          
+          class MainActivity : FlutterFragmentActivity() {
+          }
           EOF
-          cat android/app/src/main/kotlin/com/fazlaka/pay/MainActivity.kt
+
+      - name: Add Biometric Permissions to Manifest
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          if ! grep -q "USE_BIOMETRIC" "$MANIFEST"; then
+            sed -i '/<application/i \    <uses-permission android:name="android.permission.USE_BIOMETRIC" />' "$MANIFEST"
+          fi
 
       - name: Install dependencies
         run: flutter pub get
