@@ -24,23 +24,30 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Create MainActivity for Biometrics
+      # 1. إنشاء فولدر أندرويد لو مش موجود
+      - name: Ensure Android folder exists
         run: |
-          mkdir -p android/app/src/main/kotlin/com/fazlaka/pay
-          cat > android/app/src/main/kotlin/com/fazlaka/pay/MainActivity.kt <<'EOF'
-          package com.fazlaka.pay
-          
-          import io.flutter.embedding.android.FlutterFragmentActivity
-          
-          class MainActivity : FlutterFragmentActivity() {
-          }
-          EOF
+          if [ ! -d "android" ]; then
+            flutter create --platforms=android --org com.fazlaka.pay .
+          fi
 
+      # 2. تعديل MainActivity عشان البصمة
+      - name: Fix MainActivity for Biometrics
+        run: |
+          find android -name "MainActivity.kt" -exec sed -i 's/FlutterActivity/FlutterFragmentActivity/g' {} +
+          find android -name "MainActivity.java" -exec sed -i 's/FlutterActivity/FlutterFragmentActivity/g' {} +
+
+      # 3. إضافة صلاحية البصمة في الـ Manifest
       - name: Add Biometric Permissions to Manifest
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
-          if ! grep -q "USE_BIOMETRIC" "$MANIFEST"; then
-            sed -i '/<application/i \    <uses-permission android:name="android.permission.USE_BIOMETRIC" />' "$MANIFEST"
+          if [ -f "$MANIFEST" ]; then
+            if ! grep -q "USE_BIOMETRIC" "$MANIFEST"; then
+              sed -i '/<application/i \    <uses-permission android:name="android.permission.USE_BIOMETRIC" />' "$MANIFEST"
+            fi
+          else
+            echo "Manifest not found!"
+            exit 1
           fi
 
       - name: Install dependencies
