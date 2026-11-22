@@ -151,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     return ListTile(
                       leading: const Icon(Icons.print, color: AppTheme.primaryDarkGreen),
                       title: Text(device.name ?? 'طابعة غير معروفة'),
-                      subtitle: Text(device.address ?? ''),
+                      subtitle: Text(device.macAdress),
                       onTap: () async {
                         Navigator.pop(ctx); 
                         
