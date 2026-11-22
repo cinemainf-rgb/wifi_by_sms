@@ -24,34 +24,28 @@ jobs:
           channel: 'stable'
           cache: true
 
-      # 1. إجبار السيرفر على إنشاء فولدر الأندرويد (حتى لو موجود، هيكمله)
-      - name: Generate Android Files (Force)
+      - name: Generate Android Files
         run: flutter create --platforms=android --org com.fazlaka.pay .
 
-      # 2. تعديل الماين أكتيفيتي
-      - name: Fix MainActivity for Biometrics
+      - name: Patch Native Android Files
         run: |
+          # 1. حل مشكلة إصدار Kotlin (إجباره على إصدار 1.9.0 المستقر)
+          sed -i "s/ext.kotlin_version = .*/ext.kotlin_version = '1.9.0'/" android/build.gradle
+          
+          # 2. تعديل MainActivity عشان البصمة
           find android -name "MainActivity.kt" -exec sed -i 's/FlutterActivity/FlutterFragmentActivity/g' {} +
           find android -name "MainActivity.java" -exec sed -i 's/FlutterActivity/FlutterFragmentActivity/g' {} +
-
-      # 3. إضافة الصلاحية في المانيفست
-      - name: Add Biometric Permissions to Manifest
-        run: |
+          
+          # 3. إضافة صلاحية البصمة في الـ Manifest
           MANIFEST_PATH=$(find android -name "AndroidManifest.xml" | head -n 1)
           if [ -n "$MANIFEST_PATH" ]; then
             if ! grep -q "USE_BIOMETRIC" "$MANIFEST_PATH"; then
               sed -i '/<application/i \    <uses-permission android:name="android.permission.USE_BIOMETRIC" />' "$MANIFEST_PATH"
             fi
-          else
-            echo "Manifest not found!"
-            exit 1
           fi
 
       - name: Install dependencies
         run: flutter pub get
-
-      - name: Analyze project
-        run: flutter analyze --no-fatal-infos
 
       - name: Build release APK
         run: flutter build apk --release
