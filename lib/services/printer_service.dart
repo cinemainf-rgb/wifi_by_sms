@@ -1,4 +1,4 @@
-import 'package:blue_thermal_printer/blue_thermal_printer.dart';
+import 'package:blue_thermal_printer_plus/blue_thermal_printer_plus.dart';
 import 'package:flutter/material.dart';
 
 class PrinterService {
