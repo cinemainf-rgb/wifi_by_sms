@@ -1,55 +1,42 @@
 name: Build Fazlaka Pay APK
-
 on:
   push:
     branches: [ "main", "master" ]
   workflow_dispatch:
-
 jobs:
   build-apk:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
           cache: true
-
-      - name: Generate Android Files
-        run: flutter create --platforms=android --org com.fazlaka.pay .
-
-      - name: Patch Native Android Files
+      - name: Ensure Android platform files exist
         run: |
-          # 1. حل مشكلة إصدار Kotlin (إجباره على إصدار 1.9.0 المستقر)
-          sed -i "s/ext.kotlin_version = .*/ext.kotlin_version = '1.9.0'/" android/build.gradle
-          
-          # 2. تعديل MainActivity عشان البصمة
-          find android -name "MainActivity.kt" -exec sed -i 's/FlutterActivity/FlutterFragmentActivity/g' {} +
-          find android -name "MainActivity.java" -exec sed -i 's/FlutterActivity/FlutterFragmentActivity/g' {} +
-          
-          # 3. إضافة صلاحية البصمة في الـ Manifest
-          MANIFEST_PATH=$(find android -name "AndroidManifest.xml" | head -n 1)
-          if [ -n "$MANIFEST_PATH" ]; then
-            if ! grep -q "USE_BIOMETRIC" "$MANIFEST_PATH"; then
-              sed -i '/<application/i \    <uses-permission android:name="android.permission.USE_BIOMETRIC" />' "$MANIFEST_PATH"
-            fi
+          if [ ! -f "android/app/build.gradle" ]; then
+            flutter create --platforms=android --org com.fazlaka.pay .
           fi
-
+      - name: Fix MainActivity for fingerprint
+        run: |
+          cat > android/app/src/main/kotlin/com/fazlaka/pay/MainActivity.kt <<'EOF'
+          package com.fazlaka.pay
+          import io.flutter.embedding.android.FlutterFragmentActivity
+          class MainActivity : FlutterFragmentActivity()
+          EOF
       - name: Install dependencies
         run: flutter pub get
-
+      - name: Analyze project
+        run: flutter analyze --no-fatal-infos
       - name: Build release APK
         run: flutter build apk --release
-
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
